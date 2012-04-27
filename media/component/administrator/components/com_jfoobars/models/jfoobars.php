@@ -15,7 +15,7 @@ jimport('joomla.application.component.modellist');
  * @package		Joomla
  * @subpackage	com_jfoobars
  */
-class JfoobarsModelJfoobars extends JModelList
+class JfoobarsAdminModelJfoobars extends JModelList
 {
 	/**
 	 * Constructor.
