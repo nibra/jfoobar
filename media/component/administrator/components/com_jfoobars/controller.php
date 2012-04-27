@@ -7,28 +7,33 @@
  */
 defined('_JEXEC') or die;
 
-class JfoobarsController extends JController
+/**
+ * Jfoobars Admin Controller
+ */
+class JfoobarsAdminController extends JController
 {
-	/**
-	 * Method to display a view.
-	 *
-	 * @param	boolean			$cachable	If true, the view output will be cached
-	 * @param	array			$urlparams	An array of safe url parameters and their variable types, for valid values see {@link JFilterInput::clean()}.
-	 *
-	 * @return	JController		This object to support chaining.
-	 * @since	1.5
-	 */
-	public function display($cachable = false, $urlparams = false)
-	{
-		require_once JPATH_COMPONENT.'/helpers/jfoobars.php';
+    /**
+     * Display a view.
+     *
+     * @param  boolean     $cachable   If true, the view output will be cached
+     * @param  array|bool  $urlparams  An array of safe url parameters and their variable types, for valid values
+     *                                 see {@link JFilterInput::clean()}.
+     *
+     * @return JfoobarsAdminController  This object to support chaining.
+     *
+     * @since  1.5
+     */
+    public function display($cachable = false, $urlparams = false)
+    {
+        $input = JFactory::getApplication()->input;
+        require_once JPATH_COMPONENT . '/helpers/jfoobars.php';
 
-		JfoobarsHelper::addSubmenu(JRequest::getCmd('view', 'jfoobars'));
+        $view = $input->get('view', 'jfoobars', 'cmd');
+        JfoobarsAdminHelper::addSubmenu($view);
+        $input->set('view', $view);
 
-		$view		= JRequest::getCmd('view', 'jfoobars');
-        JRequest::setVar('view', $view);
+        parent::display();
 
-		parent::display();
-
-		return $this;
-	}
+        return $this;
+    }
 }

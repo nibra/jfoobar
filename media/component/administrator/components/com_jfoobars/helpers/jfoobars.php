@@ -12,7 +12,7 @@ defined('_JEXEC') or die;
  *
  * Jfoobars helper.
  */
-class JfoobarsHelper
+class JfoobarsAdminHelper
 {
 	/**
 	 * addSubmenu
@@ -58,7 +58,7 @@ class JfoobarsHelper
 
 		return $result;
 	}
-    
+
 
 	/**
 	* Applies the content tag filters to arbitrary text as per settings for current user group
