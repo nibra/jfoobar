@@ -112,13 +112,16 @@ class JfoobarsAdminControllerJfoobar extends JControllerForm
      *
      * @param  JModelAdmin  $model
      *
+     * @throws RuntimeException  if session token is invalid
      * @return boolean      True if successful, false otherwise and internal error is set.
      *
      * @since  1.6
      */
     public function batch($model)
     {
-        JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
+        if (!JSession::checkToken()) {
+            throw new RuntimeException(JText::_('JINVALID_TOKEN'));
+        }
 
         // Set the model
         if (empty($model)) {
