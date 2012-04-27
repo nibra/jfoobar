@@ -12,6 +12,15 @@ defined('_JEXEC') or die;
  */
 class JfoobarsTableJfoobar extends JTable
 {
+    public $id;
+    public $catid;
+    public $state;
+    public $publish_up;
+    public $version;
+    public $metadata;
+    public $parameters;
+    public $custom_fields;
+
     /**
      * Constructor
      *
