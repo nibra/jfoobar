@@ -1,12 +1,14 @@
 <?php
 /**
- * @version     1.0.0
- * @package     com_jfoobar
- * @copyright   Copyright (C) 2011 Amy Stephen. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ * @version   1.0.0
+ * @package   com_jfoobar
+ * @copyright Copyright (C) 2011 Amy Stephen. All rights reserved.
+ * @license   GNU General Public License version 2 or later; see LICENSE.txt
  */
 defined('MOLAJO') or die;
-require_once JPATH_ADMINISTRATOR.'/components/com_installer/models/discover.php';
+
+/** @const JPATH_ADMINISTRATOR '/home/nibra/Joomla Extensions/Joomla_2.5-Std-Installation/administrator' */
+require_once JPATH_ADMINISTRATOR . '/components/com_installer/models/discover.php';
 include_once dirname(__FILE__) . '/file.php';
 jimport('joomla.client.helper');
 jimport('joomla.application.component.model');
@@ -19,52 +21,63 @@ jimport('joomla.filesystem.file');
 /**
  * Extension Manager Create Model
  *
- * @package	Molajo
- * @subpackage	com_jfoobar
- * @since	1.6
+ * @package    Molajo
+ * @subpackage com_jfoobar
+ * @since      1.6
  */
 class InstallerModelCreate extends JModel
 {
-    /**
-     * Model context string.
-     *
-     * @var		string
-     */
+    /** @var  string  Model context string */
     protected $_context = 'com_jfoobar.create';
 
+    /** @var  string  Singular of the extension name to be replaced */
+    protected $_replacesingle = 'jfoobar';
+
+    /** @var  string  Plural of the extension name to be replaced */
+    protected $_replaceplural = 'jfoobars';
+
+    /** @var  string  Singular of the new extension name */
+    protected $_single = null;
+
+    /** @var  string  Plural of the new extension name */
+    protected $_plural = null;
+
     /**
-     * populateState
+     * Populate the model state
      *
      * Method to auto-populate the model state.
      *
-     * Note. Calling getState in this method will result in recursion.
+     * Note: Calling getState in this method will result in recursion.
      *
-     * @since	1.6
+     * @since    1.6
      */
     protected function populateState()
     {
-         /** messages **/
-        $this->setState('message', JFactory::getApplication()->getUserState('com_jfoobar.message'));
-        $this->setState('extension_message', JFactory::getApplication()->getUserState('com_jfoobar.extension_message'));
+        $application = JFactory::getApplication();
+        $input = $application->input;
 
-        JFactory::getApplication()->setUserState('com_jfoobar.message','');
-        JFactory::getApplication()->setUserState('com_jfoobar.extension_message','');
+        // messages
+        $this->setState('message', $application->getUserState('com_jfoobar.message'));
+        $this->setState('extension_message', $application->getUserState('com_jfoobar.extension_message'));
 
-        /** extension type **/
-        $this->setState('create.createtype', JRequest::getCmd('createtype', 'component'));
+        $application->setUserState('com_jfoobar.message', '');
+        $application->setUserState('com_jfoobar.extension_message', '');
 
-        /** module **/
-        $this->setState('create.module_name', JRequest::getCmd('module_name', ''));
+        // extension type
+        $this->setState('create.createtype', $input->get('createtype', 'component', 'cmd'));
 
-        /** plugin **/
-        $this->setState('create.plugin_name', JRequest::getCmd('plugin_name', ''));
-        $this->setState('create.plugin_type', JRequest::getCmd('plugin_type', 'content'));
+        // module
+        $this->setState('create.module_name', $input->get('module_name', '', 'cmd'));
+
+        // plugin
+        $this->setState('create.plugin_name', $input->get('plugin_name', '', 'cmd'));
+        $this->setState('create.plugin_type', $input->get('plugin_type', 'content', 'cmd'));
 
         parent::populateState();
     }
 
     /**
-     * create
+     * Create and install an extension
      *
      * Creates and then Installs a Molajo Extension as per user instructions
      *
@@ -73,14 +86,14 @@ class InstallerModelCreate extends JModel
      * JLoader::register('InstallerControllerCreate', MOLAJO_LIBRARY_COM_JFOOBARER.'/controllers/create.php');
      * require_once MOLAJO_LIBRARY_COM_JFOOBARER.'/controllers/create.php';
      *
-     * @return	boolean result of install
+     * @return  boolean|string  True or extension name on success, false on failure
      */
     function create()
     {
-        /** set ftp credentials, if used **/
+        // set ftp credentials, if used
         JClientHelper::setCredentialsFromRequest('ftp');
 
-        /** component */
+        // component
         if ($this->getState('create.createtype') == 'component') {
             return $this->_createComponent();
 
@@ -97,251 +110,303 @@ class InstallerModelCreate extends JModel
             return $this->_createTemplate();
 
         } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INVALID_EXTENSION_TYPE_FAILED').': '. $this->getState('create.createtype'), 'error');
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INVALID_EXTENSION_TYPE_FAILED') . ': ' . $this->getState('create.createtype'), 'error');
             return false;
         }
     }
 
     /**
-     * _createComponent
+     * Create a component
      *
      * Copies files from source to Extension location and changes literals to correct values
      *
-     * @return	Package details or false on failure
-     * @since	1.6
+     * @return  boolean|string  Extension name on success, false on failure
+     *
+     * @since   1.6
      */
     protected function _createComponent()
     {
-        /** file, class and method **/
-        $classFolder = dirname(__FILE__).'/component/';
+        $application = JFactory::getApplication();
+        $input = $application->input;
 
-        $filename = JFile::makeSafe(JRequest::getCmd('source', 'jfoobars'));
+        // file, class and method
+        $classFolder = __DIR__ . '/component/';
+
+        $filename = JFile::makeSafe($input->get('source', 'jfoobars', 'cmd'));
         $filename = JFilterOutput::stringURLSafe($filename);
-        $extensionClassname = 'InstallerModelCreate'.ucfirst($filename).'Component';
-        $filename = $filename.'.php';
+        $extensionClassname = 'InstallerModelCreate' . ucfirst($filename) . 'Component';
+        $filename = $filename . '.php';
 
-        /** register create class **/
+        // register create class
         $filehelper = new MolajoFileHelper();
-        $results = $filehelper->requireClassFile ($classFolder.$filename, $extensionClassname);
+        $results = $filehelper->requireClassFile($classFolder . $filename, $extensionClassname);
         if ($results === false) {
-           JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $extensionClassname, 'error');
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $extensionClassname, 'error');
             return false;
         }
 
-        /** create extension **/
-        $extensionCreator = new $extensionClassname ();
+        // create extension
+        /** @var InstallerModelCreate $extensionCreator */
+        $extensionCreator = new $extensionClassname();
         $extension = $extensionCreator->create();
-        if ($extension) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $this->getState('create.createtype'), 'error');
+        if ($extension === false) {
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $this->getState('create.createtype'), 'error');
             return false;
         }
 
-        /** install extension **/
+        // install extension
         $results = $this->_installExtension(strtolower($extension));
-        if ($results) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $this->getState('create.createtype'), 'error');
+        if (!$results) {
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $this->getState('create.createtype'), 'error');
             return false;
         }
 
-        return true;
+        return $extension;
     }
 
+    /**
+     * Create a module
+     *
+     * Copies files from source to Extension location and changes literals to correct values
+     *
+     * @return  boolean|string  Extension name on success, false on failure
+     *
+     * @since   1.6
+     */
     protected function _createModule()
     {
-        /** file, class and method **/
-        $classFolder = dirname(__FILE__).'/module/';
+        $application = JFactory::getApplication();
+        $input = $application->input;
 
-        $filename = JFile::makeSafe(JRequest::getCmd('source', 'jfoobars'));
+        // file, class and method
+        $classFolder = __DIR__ . '/module/';
+
+        $filename = JFile::makeSafe($input->get('source', 'jfoobars', 'cmd'));
         $filename = JFilterOutput::stringURLSafe($filename);
-        $extensionClassname = 'InstallerModelCreate'.ucfirst($filename).'Module';
-        $filename = $filename.'.php';
+        $extensionClassname = 'InstallerModelCreate' . ucfirst($filename) . 'Module';
+        $filename = $filename . '.php';
 
-        /** register create class **/
+        // register create class
         $filehelper = new MolajoFileHelper();
-        $results = $filehelper->requireClassFile ($classFolder.$filename, $extensionClassname);
+        $results = $filehelper->requireClassFile($classFolder . $filename, $extensionClassname);
         if ($results === false) {
-           JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $extensionClassname, 'error');
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $extensionClassname, 'error');
             return false;
         }
 
-        /** create extension **/
+        // create extension
+        /** @var InstallerModelCreate $extensionCreator */
         $extensionCreator = new $extensionClassname ();
         $extension = $extensionCreator->create();
-        if ($extension) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $this->getState('create.createtype'), 'error');
+        if ($extension === false) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $this->getState('create.createtype'), 'error');
             return false;
         }
 
-        /** install extension **/
+        // install extension
         $results = $this->_installExtension(strtolower($extension));
-        if ($results) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED').': '. $this->getState('create.createtype'), 'error');
+        if (!$results) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED') . ': ' . $this->getState('create.createtype'), 'error');
             return false;
         }
 
+        return $extension;
+    }
+
+    /**
+     * Create a plugin
+     *
+     * Copies files from source to Extension location and changes literals to correct values
+     *
+     * @return  boolean|string  Extension name on success, false on failure
+     */
+    protected function _createPlugin()
+    {
         return true;
     }
 
-    protected function _createPlugin() {}
-
-    protected function _createLayout() {}
-
-    protected function _createTemplate() {}
-
-    protected function _installExtension ($extension)
+    /**
+     * Create a layout
+     *
+     * @return  boolean|string  Extension name on success, false on failure
+     */
+    protected function _createLayout()
     {
-        /** verify package retrieved **/
+        return true;
+    }
+
+    /**
+     * Create a template
+     *
+     * @return  boolean|string  Extension name on success, false on failure
+     */
+    protected function _createTemplate()
+    {
+        return true;
+    }
+
+    /**
+     * Install an extension
+     *
+     * @param  string  $extension  The name of the extension
+     *
+     * @return bool    True on success
+     */
+    protected function _installExtension($extension)
+    {
+        // verify package retrieved
         $installer = new InstallerModelDiscover();
 
         $results = $installer->purge();
-        if ($results) {
-        } else {
+        if (!$results) {
             JFactory::getApplication()->setUserState('com_jfoobar.message', JText::_('PLG_SYSTEM_CREATE_PURGE_DISCOVERY_FAILED'));
             return false;
         }
 
-        /** verify package retrieved (discover does not return a condition) **/
-        $result = $installer->discover();
+        // verify package retrieved
+        $installer->discover();
 
         $db = $this->getDbo();
-		$query = $db->getQuery(true);
-		$query->select('extension_id');
-		$query->from('`#__extensions`');
-		$query->where('`state`= -1');
-		$query->where('`element`='.$db->quote($extension));
+        $query = $db->getQuery(true);
+        $query->select('extension_id');
+        $query->from('`#__extensions`');
+        $query->where('`state`= -1');
+        $query->where('`element`=' . $db->quote($extension));
 
-		$db->setQuery((string)$query);
-		$discoveredExtensionID = $db->loadResult();
+        $db->setQuery((string)$query);
+        $discoveredExtensionID = (int)$db->loadResult();
 
-        if ((int) $discoveredExtensionID > 0) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_RETRIEVE_EXTENSION_ID_FAILED').': '. $discoveredExtensionID, 'error');
+        if ($discoveredExtensionID <= 0) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_RETRIEVE_EXTENSION_ID_FAILED') . ': ' . $discoveredExtensionID, 'error');
             return false;
         }
 
-        /** install created extension **/
+        // install created extension
         $installer = JInstaller::getInstance();
-        $result = $installer->discover_install($discoveredExtensionID);
-        if ($result) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_MSG_DISCOVER_INSTALL_FAILED').': '. $discoveredExtensionID, 'error');
-            return false;
-        }
+        $installer->discover_install($discoveredExtensionID);
+
+        $application = JFactory::getApplication();
 
         $this->setState('action', 'remove');
         $this->setState('name', $installer->get('name'));
-        JFactory::getApplication()->setUserState('com_jfoobar.message', $installer->message);
-        JFactory::getApplication()->setUserState('com_jfoobar.extension_message', $installer->get('extension_message'));
+        $application->setUserState('com_jfoobar.message', $installer->message);
+        $application->setUserState('com_jfoobar.extension_message', $installer->get('extension_message'));
 
-        /** double-check that the extension is no longer listed as not installed **/
-        $query = 'SELECT extension_id FROM #__extensions where state = -1 AND extension_id = '. (int) $discoveredExtensionID;
+        // double-check that the extension is no longer listed as not installed
+        $query = 'SELECT extension_id FROM #__extensions where state = -1 AND extension_id = ' . $discoveredExtensionID;
         $dbo = JFactory::getDBO();
-        $query = $dbo->getQuery(true);
         $dbo->setQuery($query);
-        $discoveredExtensionID = $dbo->loadResult();
-        if ((int) $discoveredExtensionID > 0) {
-            JFactory::getApplication()->setUserState('com_jfoobar.message', JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED'));
+        $discoveredExtensionID = (int)$dbo->loadResult();
+        if ($discoveredExtensionID > 0) {
+            $application->setUserState('com_jfoobar.message', JText::_('PLG_SYSTEM_CREATE_INSTALL_EXTENSION_FAILED'));
             return false;
         }
 
-        /** results **/
-        JFactory::getApplication()->enqueueMessage(JText::sprintf('PLG_SYSTEM_CREATE_INSTALL_SUCCESS', JText::_('PLG_SYSTEM_CREATE_INSTALL_TYPE_'.strtoupper($this->getState('create.createtype')))));
+        // results
+        $application->enqueueMessage(JText::sprintf('PLG_SYSTEM_CREATE_INSTALL_SUCCESS', JText::_('PLG_SYSTEM_CREATE_INSTALL_TYPE_' . strtoupper($this->getState('create.createtype')))));
         return true;
     }
 
     /**
-     * _copySource
-     * @param string $source
-     * @param string $destination
-     * @return boolean
+     * Copy source files
+     *
+     * @param  string   $source       The source directory
+     * @param  string   $destination  The destination directory
+     *
+     * @return boolean  True on success
      */
-    protected function _copySource ($source, $destination)
+    protected function _copySource($source, $destination)
     {
-        if (JFolder::exists($source)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND').' '.$source, 'error');
+        if (!JFolder::exists($source)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND') . ' ' . $source, 'error');
             return false;
         }
 
         if (JFolder::exists($destination)) {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_DESTINATION_FOLDER_ALREADY_EXISTS').' '.$destination, 'error');
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_DESTINATION_FOLDER_ALREADY_EXISTS') . ' ' . $destination, 'error');
             return false;
         }
 
-        $results = JFolder::copy($source, $destination);
-        if ($results == false) {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_COPY_FOLDER_FAILED').' '.$source.' '.$destination, 'error');
+        if (!JFolder::copy($source, $destination)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_COPY_FOLDER_FAILED') . ' ' . $source . ' ' . $destination, 'error');
             return false;
         }
 
-        /** retrieve all folder names for destination **/
-        $folders = JFolder::folders($destination, $filter='', $recurse=true, $fullpath=true, $exclude = array('.svn', 'CVS'));
+        // retrieve all folder names for destination
+        $folders = JFolder::folders($destination, '', true, true, array('.svn', 'CVS'));
         $folders[] = $destination;
 
-        /** process files in each folder **/
+        // process files in each folder
         foreach ($folders as $folder) {
 
-            /** retrieve all file names in folder **/
+            // retrieve all file names in folder
             $files = JFolder::files($folder);
 
-            /** process each file **/
+            // process each file
             foreach ($files as $file) {
 
-                /** retrieve current file extension **/
+                // retrieve current file extension
                 $fileExtension = JFile::getExt($file);
 
-                /** rename files, if needed **/
-                if (strtolower($file) == $this->_replacesingle.'.'.$fileExtension) {
-                    $this->_renameFile ($existingName=$this->_replacesingle.'.'.$fileExtension, $newName=$this->_single.'.'.$fileExtension, $folder);
-                    $this->_changeWords ($folder.'/'.$newName);
+                // rename files, if needed
+                if (strtolower($file) == $this->_replacesingle . '.' . $fileExtension) {
+                    $existingName = $this->_replacesingle . '.' . $fileExtension;
+                    $newName = $this->_single . '.' . $fileExtension;
+                    $this->_renameFile($existingName, $newName, $folder);
+                    $this->_changeWords($folder . '/' . $newName);
 
-                } else if (strtolower($file) == $this->_replaceplural.'.'.$fileExtension) {
-                    $this->_renameFile ($existingName=$this->_replaceplural.'.'.$fileExtension, $newName=$this->_plural.'.'.$fileExtension, $folder);
-                    $this->_changeWords ($folder.'/'.$newName);
+                } else if (strtolower($file) == $this->_replaceplural . '.' . $fileExtension) {
+                    $existingName = $this->_replaceplural . '.' . $fileExtension;
+                    $newName = $this->_plural . '.' . $fileExtension;
+                    $this->_renameFile($existingName, $newName, $folder);
+                    $this->_changeWords($folder . '/' . $newName);
 
                 } else if ($fileExtension == 'ini') {
-                    if ($file == substr($file, 0, 10).$this->_replaceplural.'.ini') {
-                        $this->_renameFile ($existingName=substr($file, 0, 10).$this->_replaceplural.'.ini', $newName = substr($file, 0, 10).$this->_plural.'.ini', $folder);
-                        $this->_changeWords ($folder.'/'.$newName);
+                    if ($file == substr($file, 0, 10) . $this->_replaceplural . '.ini') {
+                        $existingName = substr($file, 0, 10) . $this->_replaceplural . '.ini';
+                        $newName = substr($file, 0, 10) . $this->_plural . '.ini';
+                        $this->_renameFile($existingName, $newName, $folder);
+                        $this->_changeWords($folder . '/' . $newName);
                     }
-                    if ($file == substr($file, 0, 10).$this->_replaceplural.'.sys.ini') {
-                        $this->_renameFile ($existingName=substr($file, 0, 10).$this->_replaceplural.'.sys.ini', $newName = substr($file, 0, 10).$this->_plural.'.sys.ini', $folder);
-                        $this->_changeWords ($folder.'/'.$newName);
+                    if ($file == substr($file, 0, 10) . $this->_replaceplural . '.sys.ini') {
+                        $existingName = substr($file, 0, 10) . $this->_replaceplural . '.sys.ini';
+                        $newName = substr($file, 0, 10) . $this->_plural . '.sys.ini';
+                        $this->_renameFile($existingName, $newName, $folder);
+                        $this->_changeWords($folder . '/' . $newName);
                     }
                 } else {
-                    $this->_changeWords ($folder.'/'.$file);
+                    $this->_changeWords($folder . '/' . $file);
                 }
             }
         }
 
-        /** process each folder for renames last **/
+        // process each folder for renames last
         foreach ($folders as $folder) {
 
-            /** rename folders, as needed **/
+            // rename folders, as needed
             if (basename($folder) == $this->_replacesingle) {
-                /** see if the parent folders have been renamed **/
+                // see if the parent folders have been renamed
                 $parentPath = dirname($folder);
-                if (JFolder::exists(dirname($parentPath))) {
-                } else {
+                if (!JFolder::exists(dirname($parentPath))) {
                     $parentPath = str_replace($this->_replacesingle, strtolower($this->_single), $parentPath);
                     $parentPath = str_replace($this->_replaceplural, strtolower($this->_plural), $parentPath);
                 }
-                /** rename folder **/
-                $this->_renameFolder ($existingName=$this->_replacesingle, $newName=$this->_single, $parentPath);
+                // rename folder
+                $existingName = $this->_replacesingle;
+                $newName = $this->_single;
+                $this->_renameFolder($existingName, $newName, $parentPath);
 
             } else if (basename($folder) == $this->_replaceplural) {
-                /** see if the parent folders have been renamed **/
+                // see if the parent folders have been renamed
                 $parentPath = dirname($folder);
-                if (JFolder::exists(dirname($parentPath))) {
-                } else {
+                if (!JFolder::exists(dirname($parentPath))) {
                     $parentPath = str_replace($this->_replacesingle, strtolower($this->_single), $parentPath);
                     $parentPath = str_replace($this->_replaceplural, strtolower($this->_plural), $parentPath);
                 }
-                $this->_renameFolder ($existingName=$this->_replaceplural, $newName=$this->_plural, dirname($folder));
+                // rename folder
+                $existingName = $this->_replaceplural;
+                $newName = $this->_plural;
+                $this->_renameFolder($existingName, $newName, $parentPath);
             }
         }
 
@@ -349,26 +414,29 @@ class InstallerModelCreate extends JModel
     }
 
     /**
-     * _renameFolder
-     * @param string $folder
-     * @return boolean
+     * Rename a folder
+     *
+     * @param  string   $existingName  The old name of the directory
+     * @param  string   $newName       The new name of the directory
+     * @param  string   $path          The parent directory
+     *
+     * @return boolean  True on success
      */
-    protected function _renameFolder ($existingName, $newName, $path)
+    protected function _renameFolder($existingName, $newName, $path)
     {
-        if (JFolder::exists($path)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND').' '.$path, 'error');
+        $application = JFactory::getApplication();
+
+        if (!JFolder::exists($path)) {
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND') . ' ' . $path, 'error');
             return false;
         }
-        if (JFolder::exists($path.'/'.$existingName)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND').' '.$path.$existingName, 'error');
+        if (!JFolder::exists($path . '/' . $existingName)) {
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND') . ' ' . $path . $existingName, 'error');
             return false;
         }
 
-        $results = JFolder::move($existingName, $newName, $path);
-        if ($results == false) {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_RENAME_FOLDER_FAILED').' '.$path.$existingName, 'error');
+        if (!JFolder::move($existingName, $newName, $path)) {
+            $application->enqueueMessage(JText::_('PLG_SYSTEM_RENAME_FOLDER_FAILED') . ' ' . $path . $existingName, 'error');
             return false;
         }
 
@@ -376,33 +444,31 @@ class InstallerModelCreate extends JModel
     }
 
     /**
-     * _renameFile
+     * Rename a file
      *
-     * Rename file
+     * @param  string   $existingName  The old name of the file
+     * @param  string   $newName       The new name of the file
+     * @param  string   $path          The parent directory
      *
-     * @param string $file
-     * @return boolean
+     * @return boolean  True on success
      */
-    protected function _renameFile ($existingName, $newName, $path)
+    protected function _renameFile($existingName, $newName, $path)
     {
-        if (JFolder::exists($path)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND').' '.$path, 'error');
+        if (!JFolder::exists($path)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FOLDER_NOT_FOUND') . ' ' . $path, 'error');
             return false;
         }
-        if (JFile::exists($path.'/'.$existingName)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FILE_NOT_FOUND').' '.$path.'/'.$existingName, 'error');
+        if (!JFile::exists($path . '/' . $existingName)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FILE_NOT_FOUND') . ' ' . $path . '/' . $existingName, 'error');
             return false;
         }
-        if (JFile::exists($path.'/'.$newName)) {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FILE_ALREADY_EXISTS').' '.$path.'/'.$newName, 'error');
+        if (JFile::exists($path . '/' . $newName)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_FILE_ALREADY_EXISTS') . ' ' . $path . '/' . $newName, 'error');
             return false;
         }
 
-        $results = JFile::move($existingName, $newName, $path);
-        if ($results == false) {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_RENAME_FILE_FAILED').' '.$path.'/'.$existingName, 'error');
+        if (!JFile::move($existingName, $newName, $path)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_RENAME_FILE_FAILED') . ' ' . $path . '/' . $existingName, 'error');
             return false;
         }
 
@@ -410,18 +476,18 @@ class InstallerModelCreate extends JModel
     }
 
     /**
-     * _changeWords
+     * Change words
      *
      * Changes words in file for plural and singular
      *
-     * @string  $file
-     * @return  boolean
+     * @param   string   $file  The name of a file
+     *
+     * @return  boolean  True on success
      */
-    protected function _changeWords ($file)
+    protected function _changeWords($file)
     {
-        if (JFile::exists($file)) {
-        } else {
-            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_CHANGE_WORDS_FILE_NOT_FOUND').': '. $file, 'error');
+        if (!JFile::exists($file)) {
+            JFactory::getApplication()->enqueueMessage(JText::_('PLG_SYSTEM_CREATE_CHANGE_WORDS_FILE_NOT_FOUND') . ': ' . $file, 'error');
             return false;
         }
 
