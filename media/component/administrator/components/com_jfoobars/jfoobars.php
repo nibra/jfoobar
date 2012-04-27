@@ -15,6 +15,6 @@ if (!JFactory::getUser()->authorise('core.manage', 'com_jfoobars')) {
 // Include dependancies
 jimport('joomla.application.component.controller');
 
-$controller	= JController::getInstance('Jfoobars');
+$controller	= JController::getInstance('JfoobarsAdmin');
 $controller->execute(JRequest::getCmd('task'));
 $controller->redirect();

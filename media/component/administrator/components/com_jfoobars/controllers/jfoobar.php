@@ -1,126 +1,133 @@
 <?php
 /**
- * @version     1.0.0
- * @package     com_jfoobars
- * @copyright   Copyright (C) 2011 Amy Stephen. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ * @version   1.0.0
+ * @package   com_jfoobars
+ * @copyright Copyright (C) 2011 Amy Stephen. All rights reserved.
+ * @license   GNU General Public License version 2 or later; see LICENSE.txt
  */
 defined('_JEXEC') or die;
 
 jimport('joomla.application.component.controllerform');
 
 /**
- * @package		Joomla.Administrator
- * @subpackage	com_jfoobars
- * @since		1.6
+ * @package    Joomla.Administrator
+ * @subpackage com_jfoobars
+ * @since      1.6
  */
-class JfoobarsControllerJfoobar extends JControllerForm
+class JfoobarsAdminControllerJfoobar extends JControllerForm
 {
-	/**
-	 * Class constructor.
-	 *
-	 * @param	array	$config	A named array of configuration variables.
-	 *
-	 * @return	JControllerForm
-	 * @since	1.6
-	 */
-	function __construct($config = array())
-	{
-		parent::__construct($config);
-	}
+    /**
+     * Class constructor
+     *
+     * @param  array  $config  A named array of configuration variables.
+     *
+     * @return \JfoobarsAdminControllerJfoobar
+     *
+     * @since  1.6
+     */
+    function __construct($config = array())
+    {
+        parent::__construct($config);
+    }
 
-	/**
-	 * Method override to check if you can add a new record.
-	 *
-	 * @param	array	An array of input data.
-	 *
-	 * @return	boolean
-	 * @since	1.6
-	 */
-	protected function allowAdd($data = array())
-	{
-		// Initialise variables.
-		$user		= JFactory::getUser();
-		$categoryId	= JArrayHelper::getValue($data, 'catid', JRequest::getInt('filter_category_id'), 'int');
-		$allow		= null;
+    /**
+     * Check if the user can add a new record.
+     *
+     * @param  array    $data  An array of input data.
+     *
+     * @return boolean  True, if allowed
+     *
+     * @since    1.6
+     */
+    protected function allowAdd($data = array())
+    {
+        $input = JFactory::getApplication()->input;
 
-		if ($categoryId) {
-			// If the category has been passed in the data or URL check it.
-			$allow	= $user->authorise('core.create', 'com_jfoobars.category.'.$categoryId);
-		}
+        // Initialise variables.
+        $user = JFactory::getUser();
+        $categoryId = JArrayHelper::getValue($data, 'catid', $input->get('filter_category_id', 0, 'int'), 'int');
+        $allow = null;
 
-		if ($allow === null) {
-			// In the absense of better information, revert to the component permissions.
-			return parent::allowAdd();
-		}
-		else {
-			return $allow;
-		}
-	}
+        if (!empty($categoryId)) {
+            // If the category has been passed in the data or URL check it.
+            $allow = $user->authorise('core.create', 'com_jfoobars.category.' . $categoryId);
+        }
 
-	/**
-	 * Method override to check if you can edit an existing record.
-	 *
-	 * @param	array	$data	An array of input data.
-	 * @param	string	$key	The name of the key for the primary key.
-	 *
-	 * @return	boolean
-	 * @since	1.6
-	 */
-	protected function allowEdit($data = array(), $key = 'id')
-	{
-		// Initialise variables.
-		$recordId	= (int) isset($data[$key]) ? $data[$key] : 0;
-		$user		= JFactory::getUser();
-		$userId		= $user->get('id');
+        if (is_null($allow)) {
+            // In the absence of better information, revert to the component permissions.
+            return parent::allowAdd();
+        } else {
+            return $allow;
+        }
+    }
 
-		// Check general edit permission first.
-		if ($user->authorise('core.edit', 'com_jfoobars.jfoobar.'.$recordId)) {
-			return true;
-		}
+    /**
+     * Check if the user can edit an existing record.
+     *
+     * @param  array    $data  An array of input data.
+     * @param  string   $key   The name of the key for the primary key.
+     *
+     * @return boolean  True, if allowed
+     *
+     * @since  1.6
+     */
+    protected function allowEdit($data = array(), $key = 'id')
+    {
+        // Initialise variables.
+        $recordId = (int)isset($data[$key]) ? $data[$key] : 0;
+        $user = JFactory::getUser();
+        $userId = $user->get('id');
 
-		// Fallback on edit.own.
-		// First test if the permission is available.
-		if ($user->authorise('core.edit.own', 'com_jfoobars.jfoobar.'.$recordId)) {
-			// Now test the owner is the user.
-			$ownerId	= (int) isset($data['created_by']) ? $data['created_by'] : 0;
-			if (empty($ownerId) && $recordId) {
-				// Need to do a lookup from the model.
-				$record		= $this->getModel()->getItem($recordId);
+        // Check general edit permission first.
+        if ($user->authorise('core.edit', 'com_jfoobars.jfoobar.' . $recordId)) {
+            return true;
+        }
 
-				if (empty($record)) {
-					return false;
-				}
+        // Fallback on edit.own.
+        // First test if the permission is available.
+        if ($user->authorise('core.edit.own', 'com_jfoobars.jfoobar.' . $recordId)) {
+            // Now test the owner is the user.
+            $ownerId = (int)isset($data['created_by']) ? $data['created_by'] : 0;
+            if (empty($ownerId) && $recordId) {
+                // Need to do a lookup from the model.
+                $record = $this->getModel()->getItem($recordId);
+                if (empty($record)) {
+                    return false;
+                }
+                $ownerId = $record->created_by;
+            }
 
-				$ownerId = $record->created_by;
-			}
+            // If the owner matches the current user then do the test.
+            if ($ownerId == $userId) {
+                return true;
+            }
+        }
 
-			// If the owner matches 'me' then do the test.
-			if ($ownerId == $userId) {
-				return true;
-			}
-		}
+        // Since there is no asset tracking, revert to the component permissions.
+        return parent::allowEdit($data, $key);
+    }
 
-		// Since there is no asset tracking, revert to the component permissions.
-		return parent::allowEdit($data, $key);
-	}
+    /**
+     * Run batch operations
+     *
+     * @param  JModelAdmin  $model
+     *
+     * @return boolean      True if successful, false otherwise and internal error is set.
+     *
+     * @since  1.6
+     */
+    public function batch($model)
+    {
+        JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
 
-	/**
-	 * Method to run batch operations.
-	 *
-	 * @return	void
-	 * @since	1.6
-	 */
-	public function batch($model)
-	{
-		JRequest::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
+        // Set the model
+        if (empty($model)) {
+            $model = $this->getModel('Jfoobar', '', array());
+        }
 
-		// Set the model
-		$model	= $this->getModel('Jfoobar', '', array());
+        // Preset the redirect
+        $this->setRedirect(JRoute::_('index.php?option=com_jfoobars&view=jfoobars' . $this->getRedirectToListAppend(), false));
 
-		// Preset the redirect
-		$this->setRedirect(JRoute::_('index.php?option=com_jfoobars&view=jfoobars'.$this->getRedirectToListAppend(), false));
-
-		return parent::batch($model);
-	}
+        return parent::batch($model);
+    }
 }
