@@ -17,14 +17,15 @@ defined('MOLAJO') or die;
 class MolajoFileHelper
 {
     /**
-     * requireClassFile
+     * Load a required class
      *
-     * @param string $file
-     * @param string $class
+     * @param  string   $file
+     * @param  string   $class
      *
-     * @return Boolean
+     * @throws InvalidArgumentException  if file or class do not exist
+     * @return void
      */
-    function requireClassFile ($file, $class)
+    function requireClassFile($file, $class)
     {
         if (substr(basename($file), 0, 4) == 'HOLD') {
             return;
@@ -32,18 +33,13 @@ class MolajoFileHelper
         if (class_exists($class)) {
             return;
         }
-        if (file_exists($file)) {
-            JLoader::register($class, $file);
-        } else {
-            JError::raiseNotice(500, JText::_('MOLAJO_FILE_NOT_FOUND_FOR_CLASS'.' '.$file.' '.$class), 'error');
-            return false;
+        if (!file_exists($file)) {
+            throw new InvalidArgumentException(JText::_('MOLAJO_FILE_NOT_FOUND_FOR_CLASS' . ' ' . $file . ' ' . $class));
         }
+        JLoader::register($class, $file);
 
-        if (class_exists($class)) {
-            return;
-        } else {
-            JError::raiseNotice(500, JText::_('MOLAJO_CLASS_NOT_FOUND_IN_FILE'.' '.$class.' '.$file), 'error');
-            return false;
+        if (!class_exists($class)) {
+            throw new InvalidArgumentException(JText::_('MOLAJO_FILE_NOT_FOUND_FOR_CLASS' . ' ' . $file . ' ' . $class));
         }
     }
 }
