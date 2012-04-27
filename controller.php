@@ -12,8 +12,10 @@ jimport('joomla.application.component.controller');
 /**
  * Installer Controller
  *
- * @package		Joomla.Administrator
- * @subpackage	com_installer
- * @since		1.5
+ * @package    Joomla.Administrator
+ * @subpackage com_installer
+ * @since      1.5
  */
-class JFoobarController extends JController {}
+class JFoobarController extends JController
+{
+}
